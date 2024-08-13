@@ -10,6 +10,7 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -18,7 +19,7 @@ import java.util.function.Consumer;
  * The API includes:
  * - {@link JP2P#onClientConnected(Consumer)} to handle new client connections.
  * - {@link JP2P#onClientDisconnected(Consumer)} to handle client disconnections.
- * - {@link JP2P#onMessageReceived(Consumer)} to handle received messages.
+ * - {@link JP2P#onMessageReceived(BiConsumer)} to handle received messages.
  * - {@link JP2P#sendMessage(byte[])} to send a message to all connected clients.
  * - {@link JP2P#forgetClients()} to forget all connected clients.
  * - {@link JP2P#shutdown()} to safely terminate the P2P instance.
@@ -28,7 +29,6 @@ import java.util.function.Consumer;
  * - {@link JP2P#setTimeout(long)} to set the timeout for clients to be removed.
  * - {@link JP2P#broadcastToRoom(long, byte[])} to broadcast a message to a room.
  */
-@SuppressWarnings("SwitchStatementWithTooFewBranches")
 public final class JP2P extends Thread {
     private static final String USAGE_MESSAGE = "Usage: java -jar jp2p.jar <client|server> [address|port]";
 
@@ -63,7 +63,7 @@ public final class JP2P extends Thread {
                         System.out.printf("Client connected: %s:%s%n", client.address, client.port));
                 p2p.onClientDisconnected(client ->
                         System.out.printf("Client disconnected: %s:%s%n", client.address, client.port));
-                p2p.onMessageReceived(message ->
+                p2p.onMessageReceived((client, message) ->
                         System.out.printf("Message received: %s%n", new String(message.data, StandardCharsets.UTF_8)));
                 p2p.start();
 
@@ -546,7 +546,7 @@ public final class JP2P extends Thread {
 
     private Consumer<Client> onClientConnected = client -> {};
     private Consumer<Client> onClientDisconnected = client -> {};
-    private Consumer<Message> onMessageReceived = message -> {};
+    private BiConsumer<Client, Message> onMessageReceived = (client, message) -> {};
 
     /**
      * Sets the callback for when a client connects.
@@ -571,7 +571,7 @@ public final class JP2P extends Thread {
      *
      * @param onMessageReceived The callback to set.
      */
-    public void onMessageReceived(Consumer<Message> onMessageReceived) {
+    public void onMessageReceived(BiConsumer<Client, Message> onMessageReceived) {
         this.onMessageReceived = onMessageReceived;
     }
 
@@ -622,7 +622,10 @@ public final class JP2P extends Thread {
                 this.connectedClients.add(client);
                 this.onClientConnected.accept(client);
             }
-            case USER_MESSAGE -> this.onMessageReceived.accept(message);
+            case USER_MESSAGE -> {
+                var client = this.getClient(packet);
+                this.onMessageReceived.accept(client, message);
+            }
             case OLD_CLIENT_DISCONNECTED -> {
                 var client = Client.fromBuffer(reader);
                 this.connectedClients.remove(client);
