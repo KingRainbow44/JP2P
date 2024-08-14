@@ -22,6 +22,7 @@ import java.util.function.Consumer;
  * - {@link JP2P#onMessageReceived(BiConsumer)} to handle received messages.
  * - {@link JP2P#sendMessage(byte[])} to send a message to all connected clients.
  * - {@link JP2P#forgetClients()} to forget all connected clients.
+ * - {@link JP2P#isConnectionAlive()} to check if the connection is alive.
  * - {@link JP2P#shutdown()} to safely terminate the P2P instance.
  * - {@link JP2P#start()} to start the P2P instance.
  * <p>
@@ -229,6 +230,13 @@ public final class JP2P extends Thread {
         }
 
         this.socket.close();
+    }
+
+    /**
+     * @return Whether the connection thread is alive.
+     */
+    public boolean isConnectionAlive() {
+        return this.isAlive;
     }
 
     /**
